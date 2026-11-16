@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>X-SSH</title>
+<link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand"><span class="logo"><i data-icon="terminal"></i></span><span>X-<b>SSH</b></span></div>
+  <div class="tb-actions">
+    <button id="btnLogin" class="primary"><i data-icon="power"></i> Log in</button>
+    <button id="btnNewTerm" disabled title="New terminal window (Ctrl+Shift+T)"><i data-icon="terminal"></i> Terminal</button>
+    <button id="btnNewSftp" disabled title="New SFTP window (Ctrl+Shift+S)"><i data-icon="transfer"></i> SFTP</button>
+    <button id="btnGrid" disabled title="Arrange all terminal/SFTP windows in a grid (Ctrl+Shift+G)"><i data-icon="grid"></i> Tile</button>
+    <button id="btnNewWin" title="Open another connection window"><i data-icon="window"></i> New connection</button>
+  </div>
+  <div id="status"><span class="dot"></span><span id="statusText">Disconnected</span></div>
+</header>
+
+<nav id="tabs">
+  <div class="tab active" data-tab="login"><span>⚙ Session</span></div>
+</nav>
+
+<main id="workspace">
+  <!-- ===== Login / configuration page (PuTTY layout + Bitvise log) ===== -->
+  <section id="pane-login" class="pane active">
+    <div class="cfg">
+      <aside class="cats">
+        <div class="cats-title">Configure</div>
+        <ul id="catList">
+          <li data-cat="session" class="sel"><i data-icon="server"></i>Session</li>
+          <li data-cat="auth" class="sub"><i data-icon="key"></i>Authentication</li>
+          <li data-cat="connection" class="sub"><i data-icon="plug"></i>Connection</li>
+          <li data-cat="terminal"><i data-icon="monitor"></i>Terminal</li>
+          <li data-cat="sftp"><i data-icon="transfer"></i>SFTP</li>
+          <li data-cat="tunnels"><i data-icon="route"></i>Tunnels</li>
+          <li data-cat="hostkeys"><i data-icon="shield"></i>Host keys</li>
+        </ul>
+      </aside>
+      <div class="cat-body">
+        <!-- Session -->
+        <div class="cat" data-cat="session">
+          <div class="hero"><div class="badge-ic"><i data-icon="server"></i></div><div><h2>Connect to a server</h2><p>Terminal and SFTP open in their own windows over one secure connection.</p></div></div>
+          <fieldset><legend>Destination</legend>
+            <div class="row">
+              <label class="grow">Host name (or IP address)<input id="f_host" placeholder="example.com"></label>
+              <label class="w90">Port<input id="f_port" type="number" value="22"></label>
+            </div>
+            <div class="row"><label class="grow">Username<input id="f_username" placeholder="root"></label></div>
+          </fieldset>
+          <fieldset class="saved"><legend>Saved sessions</legend>
+            <div class="saved-tools">
+              <label>Session name<input id="f_name" placeholder="e.g. prod-web"></label>
+              <button id="pSave" title="Save current settings"><i data-icon="save"></i> Save</button>
+              <button id="pLoad" title="Load selected session"><i data-icon="download"></i> Load</button>
+              <button id="pDelete" class="icon" title="Delete selected session"><i data-icon="trash"></i></button>
+              <button id="pOpenWin" class="icon" title="Open selected session in a new window"><i data-icon="open"></i></button>
+              <button id="pImport" class="icon" title="Import sessions"><i data-icon="import"></i></button>
+              <button id="pExport" class="icon" title="Export sessions (without passwords)"><i data-icon="export"></i></button>
+            </div>
+            <ul id="profileList" class="cards"></ul>
+          </fieldset>
+        </div>
+        <!-- Auth -->
+        <div class="cat" data-cat="auth" hidden>
+          <fieldset><legend>Authentication</legend>
+            <label>Initial method
+              <select id="f_auth">
+                <option value="auto">Auto (agent → ~/.ssh keys → password)</option>
+                <option value="password">Password</option>
+                <option value="key">Public key file</option>
+                <option value="agent">SSH agent</option>
+              </select>
+            </label>
+            <label>Password<input id="f_password" type="password" autocomplete="off" placeholder="leave blank to be asked"></label>
+            <label class="chk"><input id="f_savePassword" type="checkbox"> Store password/passphrase in profile (encrypted with system keyring)</label>
+          </fieldset>
+          <fieldset><legend>Private key</legend>
+            <div class="row">
+              <label class="grow">Key file<input id="f_keyFile" placeholder="~/.ssh/id_ed25519"></label>
+              <button id="browseKey" class="align-end"><i data-icon="folder"></i> Browse</button>
+            </div>
+            <label>Passphrase<input id="f_passphrase" type="password" autocomplete="off" placeholder="asked when needed"></label>
+          </fieldset>
+        </div>
+        <!-- Connection -->
+        <div class="cat" data-cat="connection" hidden>
+          <fieldset><legend>Connection</legend>
+            <label>Keepalive interval (seconds)<input id="f_keepalive" type="number" value="30"></label>
+            <label class="chk"><input id="f_compression" type="checkbox"> Enable compression</label>
+          </fieldset>
+          <fieldset><legend>After login</legend>
+            <label class="chk"><input id="f_openTerm" type="checkbox" checked> Open a terminal</label>
+            <label class="chk"><input id="f_openSftp" type="checkbox"> Open an SFTP window</label>
+            <label class="chk"><input id="f_autoTunnels" type="checkbox" checked> Start enabled tunnels</label>
+          </fieldset>
+        </div>
+        <!-- Terminal -->
+        <div class="cat" data-cat="terminal" hidden>
+          <fieldset><legend>Terminal emulation</legend>
+            <div class="row">
+              <label class="grow">Terminal type<select id="f_term"><option>xterm-256color</option><option>xterm</option><option>vt100</option><option>linux</option></select></label>
+              <label class="grow">Scrollback lines<input id="f_scrollback" type="number" value="10000"></label>
+            </div>
+          </fieldset>
+          <fieldset><legend>Appearance</legend>
+            <div class="row">
+              <label class="grow">Font<input id="f_font" value="'JetBrainsMono Nerd Font', 'DejaVu Sans Mono', monospace"></label>
+              <label class="w90">Size<input id="f_fontSize" type="number" value="14"></label>
+            </div>
+            <div class="row">
+              <label class="grow">Colour scheme<select id="f_scheme"><option>Mocha</option><option>PuTTY</option><option>Dracula</option><option>Solarized Dark</option><option>Light</option></select></label>
+              <label class="grow">Cursor<select id="f_cursor"><option>block</option><option>underline</option><option>bar</option></select></label>
+            </div>
+          </fieldset>
+          <fieldset><legend>Mouse &amp; clipboard (PuTTY style)</legend>
+            <label class="chk"><input id="f_copyOnSelect" type="checkbox" checked> Copy selected text automatically</label>
+            <label class="chk"><input id="f_rightPaste" type="checkbox" checked> Right-click pastes</label>
+          </fieldset>
+        </div>
+        <!-- SFTP -->
+        <div class="cat" data-cat="sftp" hidden>
+          <fieldset><legend>SFTP window</legend>
+            <label>Initial remote directory<input id="f_remoteDir" placeholder="home directory"></label>
+            <label>Initial local directory<input id="f_localDir" placeholder="~/Downloads (where downloads are saved)"></label>
+            <label class="chk"><input id="f_showHidden" type="checkbox"> Show hidden files</label>
+            <label class="chk"><input id="f_overwrite" type="checkbox" checked> Overwrite existing files</label>
+          </fieldset>
+        </div>
+        <!-- Tunnels -->
+        <div class="cat" data-cat="tunnels" hidden>
+          <fieldset><legend>Port forwarding</legend>
+            <div class="row fwd-add">
+              <label>Type<select id="t_type"><option value="local">Local (C2S)</option><option value="remote">Remote (S2C)</option><option value="dynamic">Dynamic (SOCKS)</option></select></label>
+              <label class="w120">Listen host<input id="t_bindHost" value="127.0.0.1"></label>
+              <label class="w90">Listen port<input id="t_bindPort" type="number" placeholder="8080"></label>
+              <label class="grow">Destination host<input id="t_destHost" placeholder="localhost"></label>
+              <label class="w90">Dest port<input id="t_destPort" type="number" placeholder="80"></label>
+              <button id="t_add" class="align-end primary"><i data-icon="plus"></i> Add</button>
+            </div>
+            <table class="grid"><thead><tr><th>On</th><th>Type</th><th>Listen</th><th>Destination</th><th>Status</th><th></th></tr></thead><tbody id="fwdList"></tbody></table>
+            <p class="hint">Local: a port on this machine reaches a host via the server. Remote: a port on the server reaches a host on this side. Dynamic: SOCKS4/5 proxy through the server.</p>
+          </fieldset>
+        </div>
+        <!-- Host keys -->
+        <div class="cat" data-cat="hostkeys" hidden>
+          <fieldset><legend>Trusted host keys</legend>
+            <table class="grid"><thead><tr><th>Host</th><th>Fingerprint</th><th></th></tr></thead><tbody id="hkList"></tbody></table>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+    <div class="login-bar">
+      <span class="target" id="targetLine"></span>
+      <button id="btnLogin2" class="primary big"><i data-icon="power"></i> Log in</button>
+    </div>
+    <div class="log-wrap">
+      <div class="log-head"><i data-icon="terminal"></i> Activity log <button id="clearLog" class="link">clear</button></div>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<div id="modalRoot"></div>
+<div id="ctxMenu" hidden></div>
+
+<script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+<script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+<script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+<script src="../node_modules/@xterm/addon-search/lib/addon-search.js"></script>
+<script src="icons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
